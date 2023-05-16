@@ -1,24 +1,23 @@
 package org.example;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.*;
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.List;
+
+//uat test commit
 
 public class Client extends JFrame {
     private static final String SERVER_ADDRESS = "localhost";
     private static final int PORT = 8080;
 
     private final JTextArea messageArea;
-    private final JComboBox<String> receiverComboBox;
+    private final JTextField receiverField;
     private final JTextField messageField;
 
     private ObjectOutputStream outputStream;
     private ObjectInputStream inputStream;
-    private List<String> activeUsers;
 
     public Client() {
         super("YouChat");
@@ -28,21 +27,48 @@ public class Client extends JFrame {
         messageArea.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(messageArea);
 
-        receiverComboBox = new JComboBox<>();
+        receiverField = new JTextField(10);
         messageField = new JTextField(20);
         JButton sendButton = new JButton("Send");
 
-        JPanel inputPanel = new JPanel();
-        inputPanel.add(new JLabel("Receiver:"));
-        inputPanel.add(receiverComboBox);
-        inputPanel.add(new JLabel("Message:"));
-        inputPanel.add(messageField);
-        inputPanel.add(sendButton);
+        // Create a main panel with BorderLayout
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10)); // Add some padding
+
+        // Create a panel for the input fields
+        JPanel inputPanel = new JPanel(new BorderLayout());
+        inputPanel.setBorder(new EmptyBorder(0, 0, 10, 0)); // Add bottom margin
+
+        // Create a panel for the labels and fields
+        JPanel fieldsPanel = new JPanel(new GridBagLayout());
+        fieldsPanel.setOpaque(false); // Make the panel transparent
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(0, 0, 5, 5); // Add some spacing
+
+        fieldsPanel.add(new JLabel("Receiver:"), gbc);
+        gbc.gridx++;
+        fieldsPanel.add(receiverField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        fieldsPanel.add(new JLabel("Message:"), gbc);
+        gbc.gridx++;
+        fieldsPanel.add(messageField, gbc);
+
+        // Add the labels and fields panel to the input panel
+        inputPanel.add(fieldsPanel, BorderLayout.CENTER);
+        inputPanel.add(sendButton, BorderLayout.EAST);
+
+        // Add the scroll pane and input panel to the main panel
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(inputPanel, BorderLayout.SOUTH);
 
         // Set up the layout
-        setLayout(new BorderLayout());
-        add(scrollPane, BorderLayout.CENTER);
-        add(inputPanel, BorderLayout.SOUTH);
+        setContentPane(mainPanel); // Use setContentPane() instead of setLayout()
         pack();
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -50,7 +76,6 @@ public class Client extends JFrame {
 
         // Set up action listeners
         sendButton.addActionListener(e -> sendMessage());
-
         messageField.addActionListener(e -> sendMessage());
     }
 
@@ -64,17 +89,12 @@ public class Client extends JFrame {
             String username = JOptionPane.showInputDialog(this, "Enter your username:");
             outputStream.writeObject(username);
 
-            activeUsers = new ArrayList<>();
-
+            // Start a new thread to receive messages from the server
             new Thread(() -> {
                 try {
                     String message;
                     while ((message = (String) inputStream.readObject()) != null) {
-                        if (message.startsWith("ACTIVE_USERS:")) {
-                            updateActiveUsers(message.substring(13));
-                        } else {
-                            messageArea.append(message + "\n");
-                        }
+                        messageArea.append(message + "\n");
                     }
                 } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();
@@ -85,18 +105,8 @@ public class Client extends JFrame {
         }
     }
 
-    public void updateActiveUsers(String userList) {
-        String[] users = userList.split(",");
-        activeUsers.clear();
-        receiverComboBox.removeAllItems();
-        for (String user : users) {
-            activeUsers.add(user);
-            receiverComboBox.addItem(user);
-        }
-    }
-
     public void sendMessage() {
-        String receiver = (String) receiverComboBox.getSelectedItem();
+        String receiver = receiverField.getText().trim();
         String text = messageField.getText().trim();
 
         if (!receiver.isEmpty() && !text.isEmpty()) {
